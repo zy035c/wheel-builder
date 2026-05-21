@@ -1,5 +1,5 @@
 molscribe>=1.0.0
-rxnscribe>=1.0.0
+rxnscribe @ git+https://github.com/thomas0809/RxnScribe.git
 rdkit>=2023.3.0
 opencv-python>=4.8.0
 Pillow>=10.0.0
