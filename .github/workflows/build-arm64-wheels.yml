@@ -1,0 +1,40 @@
+name: Build arm64 Python 3.8 Wheels
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-wheels:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build wheels inside Python 3.8 container
+        run: |
+          mkdir -p wheels
+          docker run --rm \
+            -v ${{ github.workspace }}/requirements.txt:/req.txt \
+            -v ${{ github.workspace }}/wheels:/wheels \
+            python:3.8-slim bash -c "
+              set -e
+              apt-get update -qq
+              apt-get install -y -q build-essential cmake libgl1 libglib2.0-0 libsm6 libxext6
+              pip install --upgrade pip wheel
+              pip wheel -r /req.txt -w /wheels/
+              echo '--- removing torch wheels (provided by ascendai/pytorch base image) ---'
+              rm -fv /wheels/torch-*.whl /wheels/torchvision-*.whl /wheels/torchaudio-*.whl
+            "
+
+      - name: List built wheels
+        run: |
+          echo "Total wheels: $(ls wheels/ | wc -l)"
+          ls -lh wheels/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smiles-extractor-arm64-cp38-wheels
+          path: wheels/
+          retention-days: 30
