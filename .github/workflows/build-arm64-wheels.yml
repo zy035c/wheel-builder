@@ -21,11 +21,50 @@ jobs:
               set -e
               apt-get update -qq
               apt-get install -y -q build-essential cmake libgl1 libglib2.0-0 libsm6 libxext6 git
+
               pip install --upgrade pip wheel
-              pip wheel -r /req.txt -w /wheels/
+
+              # Build molscribe wheel first (from PyPI sdist)
+              pip wheel 'molscribe>=1.0.0' -w /wheels/
+
+              # Clone RxnScribe and patch out the git URL dependency for MolScribe
+              git clone https://github.com/thomas0809/RxnScribe.git /tmp/RxnScribe
+              sed -i \"s|MolScribe @ git+https://github.com/thomas0809/MolScribe.git@main#egg=MolScribe|MolScribe>=1.1.1|g\" /tmp/RxnScribe/setup.py
+              sed -i \"/dependency_links/d\" /tmp/RxnScribe/setup.py
+              pip wheel /tmp/RxnScribe -w /wheels/
+
+              # Build remaining packages (excluding molscribe and rxnscribe, already done)
+              grep -v -E '^(molscribe|rxnscribe)' /req.txt > /tmp/req_rest.txt
+              pip wheel -r /tmp/req_rest.txt -w /wheels/
+
               echo '--- removing torch wheels (provided by ascendai/pytorch base image) ---'
               rm -fv /wheels/torch-*.whl /wheels/torchvision-*.whl /wheels/torchaudio-*.whl
             "
+
+      - name: Scan wheels for git URL dependencies
+        run: |
+          echo "=== Scanning all wheels for embedded git URL dependencies ==="
+          found=0
+          for whl in wheels/*.whl; do
+            gitdeps=$(python3 -c "
+          import zipfile, sys
+          z = zipfile.ZipFile('$whl')
+          meta_files = [f for f in z.namelist() if f.endswith('/METADATA') or f == 'METADATA']
+          if meta_files:
+              content = z.read(meta_files[0]).decode('utf-8', errors='ignore')
+              for line in content.splitlines():
+                  if 'git+' in line:
+                      print(line)
+          " 2>/dev/null)
+            if [ -n "$gitdeps" ]; then
+              echo "WARNING $(basename $whl):"
+              echo "$gitdeps"
+              found=1
+            fi
+          done
+          if [ $found -eq 0 ]; then
+            echo "All wheels clean - no git URL dependencies found."
+          fi
 
       - name: List built wheels
         run: |
