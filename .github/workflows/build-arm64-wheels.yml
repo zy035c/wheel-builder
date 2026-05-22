@@ -24,12 +24,12 @@ jobs:
 
               pip install --upgrade pip wheel
 
-              # Pre-install all common build tools with numpy 1.x pinned.
-              # Many packages (blis, pycocotools, etc.) declare numpy>=2.0 as a build dep,
-              # but numpy 2.x dropped Python 3.8 support. --no-build-isolation below
-              # makes all source builds reuse these pre-installed tools instead of pulling
-              # their own build deps from PyPI.
-              pip install 'numpy>=1.24.0,<2.0' cython setuptools wheel
+              # Pre-install all common build tools with numpy 1.x and Cython 0.29.x pinned.
+              # - numpy 2.x dropped Python 3.8 support
+              # - Cython 3.x has breaking API changes that break spacy/blis .pyx compilation
+              # --no-build-isolation makes all source builds reuse these instead of
+              # pulling their own build deps from PyPI.
+              pip install 'numpy>=1.24.0,<2.0' 'cython>=0.25,<3.0' setuptools wheel
 
               # Build MolScribe from CrystalEye42 fork (required by MolDetect)
               git clone https://github.com/CrystalEye42/MolScribe.git /tmp/MolScribe
