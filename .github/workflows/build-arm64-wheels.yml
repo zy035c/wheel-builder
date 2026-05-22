@@ -46,8 +46,9 @@ jobs:
               grep -v -E '^(molscribe|rxnscribe)' /req.txt > /tmp/req_rest.txt
               pip wheel -r /tmp/req_rest.txt --no-build-isolation -w /wheels/
 
-              echo '--- removing torch wheels (provided by ascendai/pytorch base image) ---'
-              rm -fv /wheels/torch-*.whl /wheels/torchvision-*.whl /wheels/torchaudio-*.whl
+              echo '--- removing torch/torchaudio (provided by ascendai/pytorch base image) ---'
+              echo '--- keeping torchvision: needed by easyocr, not in base image ---'
+              rm -fv /wheels/torch-*.whl /wheels/torchaudio-*.whl
             "
 
       - name: Scan wheels for git URL dependencies
