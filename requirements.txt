@@ -1,6 +1,14 @@
 molscribe>=1.0.0
-rxnscribe @ git+https://github.com/thomas0809/RxnScribe.git
+rxnscribe @ git+https://github.com/Ozymandias314/MolDetect.git
 rdkit>=2023.3.0
+albumentations>=1.1.0
+timm>=0.4.12
+SmilesPE>=0.0.3
+OpenNMT-py>=2.2.0
+pandas>=1.2.4
+pycocotools>=2.0.4
+pytorch-lightning>=1.8.6
+easyocr>=1.6.2
 opencv-python-headless>=4.8.0
 Pillow>=9.5.0
 matplotlib>=3.7.0

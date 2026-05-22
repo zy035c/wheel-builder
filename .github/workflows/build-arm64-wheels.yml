@@ -27,8 +27,8 @@ jobs:
               # Build molscribe wheel first (from PyPI sdist)
               pip wheel 'molscribe>=1.0.0' -w /wheels/
 
-              # Clone RxnScribe and patch out the git URL dependency for MolScribe
-              git clone https://github.com/thomas0809/RxnScribe.git /tmp/RxnScribe
+              # Clone MolDetect fork (Ozymandias314) which contains MolDetect class
+              git clone https://github.com/Ozymandias314/MolDetect.git /tmp/RxnScribe
               sed -i \"s|MolScribe @ git+https://github.com/thomas0809/MolScribe.git@main#egg=MolScribe|MolScribe>=1.1.1|g\" /tmp/RxnScribe/setup.py
               sed -i \"/dependency_links/d\" /tmp/RxnScribe/setup.py
               pip wheel /tmp/RxnScribe -w /wheels/
