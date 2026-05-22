@@ -1,10 +1,10 @@
-name: Build arm64 Python 3.8 Wheels
+name: Build Smiles Extractor arm64 Wheels
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-wheels:
+  build:
     runs-on: ubuntu-24.04-arm
 
     steps:
@@ -24,36 +24,49 @@ jobs:
 
               pip install --upgrade pip wheel
 
-              # Pre-install all common build tools with numpy 1.x and Cython 0.29.x pinned.
-              # - numpy 2.x dropped Python 3.8 support
-              # - Cython 3.x has breaking API changes that break spacy/blis .pyx compilation
-              # --no-build-isolation makes all source builds reuse these instead of
-              # pulling their own build deps from PyPI.
+              # Pin numpy<2.0 (Python 3.8 max) and Cython<3.0 (spacy/blis .pyx compat)
+              # --no-build-isolation reuses these instead of pulling newer build deps from PyPI
               pip install 'numpy>=1.24.0,<2.0' 'cython>=0.25,<3.0' setuptools wheel
 
-              # Build MolScribe from CrystalEye42 fork (required by MolDetect)
+              # --- Custom forks (not on PyPI) ---
+
+              # Build MolScribe from CrystalEye42 fork (required by MolDetect/rxnscribe)
               git clone https://github.com/CrystalEye42/MolScribe.git /tmp/MolScribe
               git -C /tmp/MolScribe checkout 250f683
               pip wheel /tmp/MolScribe --no-build-isolation -w /wheels/
 
-              # Clone MolDetect fork and remove MolScribe git URL (already built above)
+              # Build rxnscribe from Ozymandias314/MolDetect (contains MolDetect class)
               git clone https://github.com/Ozymandias314/MolDetect.git /tmp/RxnScribe
               sed -i \"/CrystalEye42\\/MolScribe/d\" /tmp/RxnScribe/requirements.txt
               sed -i \"/dependency_links/d\" /tmp/RxnScribe/setup.py
               pip wheel /tmp/RxnScribe --no-build-isolation -w /wheels/
 
-              # Build all remaining packages with --no-build-isolation
-              grep -v -E '^(molscribe|rxnscribe)' /req.txt > /tmp/req_rest.txt
+              # --- OpenNMT-py: build without deps ---
+              # spacy is listed as a dep of OpenNMT-py 2.2.0 but has no cp38 aarch64 wheel
+              # and cannot be compiled. It is patched out of the wheel METADATA in the
+              # Dockerfile, so we skip it here entirely.
+              pip wheel 'OpenNMT-py>=2.2.0' --no-build-isolation --no-deps -w /wheels/
+
+              # --- All remaining packages ---
+              # Exclude molscribe, rxnscribe (built above) and OpenNMT-py (built above)
+              grep -v -E '^(molscribe|rxnscribe|OpenNMT)' /req.txt > /tmp/req_rest.txt
               pip wheel -r /tmp/req_rest.txt --no-build-isolation -w /wheels/
 
-              echo '--- removing torch/torchaudio (provided by ascendai/pytorch base image) ---'
-              echo '--- keeping torchvision: needed by easyocr, not in base image ---'
+              # --- torchvision ---
+              # Must be downloaded here (inside Python 3.8 container) so pip selects the
+              # cp38 aarch64 wheel. Downloading on the runner (Python 3.11+) would give
+              # the wrong ABI and fail at import time inside the container.
+              # Version 0.16.0 matches torch 2.1.0 in the ascendai/pytorch base image.
+              pip download --only-binary :all: 'torchvision==0.16.0' -d /wheels/
+
+              # Remove torch/torchaudio — already provided by ascendai/pytorch base image.
+              # Keep torchvision — needed by easyocr and NOT in the base image.
               rm -fv /wheels/torch-*.whl /wheels/torchaudio-*.whl
             "
 
-      - name: Scan wheels for git URL dependencies
+      - name: Scan wheels for embedded git URL dependencies
         run: |
-          echo "=== Scanning all wheels for embedded git URL dependencies ==="
+          echo "=== Scanning all wheels for git URL dependencies ==="
           found=0
           for whl in wheels/*.whl; do
             gitdeps=$(python3 -c "
@@ -67,13 +80,13 @@ jobs:
                       print(line)
           " 2>/dev/null)
             if [ -n "$gitdeps" ]; then
-              echo "WARNING $(basename $whl):"
+              echo "WARNING: $(basename $whl):"
               echo "$gitdeps"
               found=1
             fi
           done
           if [ $found -eq 0 ]; then
-            echo "All wheels clean - no git URL dependencies found."
+            echo "All wheels clean — no git URL dependencies found."
           fi
 
       - name: List built wheels
