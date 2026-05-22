@@ -32,9 +32,10 @@ jobs:
               git -C /tmp/MolScribe checkout 250f683
               pip wheel /tmp/MolScribe -w /wheels/
 
-              # Clone MolDetect fork and patch out its MolScribe git URL
+              # Clone MolDetect fork and remove MolScribe git URL (already built above)
               git clone https://github.com/Ozymandias314/MolDetect.git /tmp/RxnScribe
-              sed -i \"s|git+https://github.com/CrystalEye42/MolScribe.git@250f683|MolScribe>=1.0.0|g\" /tmp/RxnScribe/requirements.txt
+              sed -i \"/CrystalEye42\\/MolScribe/d\" /tmp/RxnScribe/requirements.txt
+              sed -i \"/dependency_links/d\" /tmp/RxnScribe/setup.py
               pip wheel /tmp/RxnScribe -w /wheels/
 
               # Build pycocotools separately with --no-build-isolation (uses pre-installed numpy 1.x)
