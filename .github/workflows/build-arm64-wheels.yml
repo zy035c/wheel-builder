@@ -24,17 +24,24 @@ jobs:
 
               pip install --upgrade pip wheel
 
-              # Build molscribe wheel first (from PyPI sdist)
-              pip wheel 'molscribe>=1.0.0' -w /wheels/
+              # Pre-install numpy 1.x so pycocotools build uses it (numpy 2.x requires py>=3.9)
+              pip install 'numpy>=1.24.0,<2.0'
 
-              # Clone MolDetect fork (Ozymandias314) which contains MolDetect class
+              # Build MolScribe from CrystalEye42 fork (required by MolDetect)
+              git clone https://github.com/CrystalEye42/MolScribe.git /tmp/MolScribe
+              git -C /tmp/MolScribe checkout 250f683
+              pip wheel /tmp/MolScribe -w /wheels/
+
+              # Clone MolDetect fork and patch out its MolScribe git URL
               git clone https://github.com/Ozymandias314/MolDetect.git /tmp/RxnScribe
-              sed -i \"s|MolScribe @ git+https://github.com/thomas0809/MolScribe.git@main#egg=MolScribe|MolScribe>=1.1.1|g\" /tmp/RxnScribe/setup.py
-              sed -i \"/dependency_links/d\" /tmp/RxnScribe/setup.py
+              sed -i \"s|git+https://github.com/CrystalEye42/MolScribe.git@250f683|MolScribe>=1.0.0|g\" /tmp/RxnScribe/requirements.txt
               pip wheel /tmp/RxnScribe -w /wheels/
 
-              # Build remaining packages (excluding molscribe and rxnscribe, already done)
-              grep -v -E '^(molscribe|rxnscribe)' /req.txt > /tmp/req_rest.txt
+              # Build pycocotools separately with --no-build-isolation (uses pre-installed numpy 1.x)
+              pip wheel 'pycocotools>=2.0.4' --no-build-isolation -w /wheels/
+
+              # Build remaining packages (excluding molscribe, rxnscribe, pycocotools already done)
+              grep -v -E '^(molscribe|rxnscribe|pycocotools)' /req.txt > /tmp/req_rest.txt
               pip wheel -r /tmp/req_rest.txt -w /wheels/
 
               echo '--- removing torch wheels (provided by ascendai/pytorch base image) ---'

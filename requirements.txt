@@ -1,4 +1,4 @@
-molscribe>=1.0.0
+molscribe @ git+https://github.com/CrystalEye42/MolScribe.git@250f683
 rxnscribe @ git+https://github.com/Ozymandias314/MolDetect.git
 rdkit>=2023.3.0
 albumentations>=1.1.0
